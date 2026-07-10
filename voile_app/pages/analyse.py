@@ -7,8 +7,9 @@ from datetime import date, timedelta
 from db import (
     init_db, get_db, Group, Athlete, Spot, Theme, WindTranche, TrainingSession
 )
-from style import page_header, PALETTE, CHART_COLORS
+from style import page_header, require_coach_auth, PALETTE, CHART_COLORS
 
+require_coach_auth()
 init_db()
 
 page_header("📊", "Analyse des volumes d'entraînement", "Filtre, compare et explore les données de la saison")

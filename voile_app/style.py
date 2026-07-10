@@ -186,3 +186,34 @@ def page_header(icon: str, title: str, subtitle: str = ""):
         """,
         unsafe_allow_html=True,
     )
+
+
+def require_coach_auth():
+    """
+    Protège une page derrière un mot de passe entraîneur partagé, défini
+    dans st.secrets["COACH_PASSWORD"]. Si aucun mot de passe n'est
+    configuré (ex : usage local sans secrets.toml), la page reste ouverte.
+    À utiliser en tout début de page pour les sections réservées aux coachs
+    (Saisie, Analyse, Configuration, Analyse du debrief).
+    """
+    try:
+        expected = st.secrets.get("COACH_PASSWORD")
+    except Exception:
+        expected = None
+
+    if not expected:
+        return  # pas de mot de passe configuré -> accès libre (dev local)
+
+    if st.session_state.get("coach_authenticated"):
+        return
+
+    st.markdown("### 🔒 Accès entraîneurs")
+    st.caption("Cette page est réservée aux entraîneurs.")
+    pwd = st.text_input("Mot de passe", type="password", key="coach_password_input")
+    if st.button("Valider", key="coach_password_submit"):
+        if pwd == expected:
+            st.session_state["coach_authenticated"] = True
+            st.rerun()
+        else:
+            st.error("Mot de passe incorrect.")
+    st.stop()

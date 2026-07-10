@@ -18,12 +18,22 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-pages = [
-    st.Page("pages/accueil.py", title="Accueil", icon="⛵", default=True),
-    st.Page("pages/saisie.py", title="Saisie", icon="📝"),
-    st.Page("pages/analyse.py", title="Analyse", icon="📊"),
-    st.Page("pages/configuration.py", title="Configuration", icon="⚙️"),
-]
+pages = {
+    "": [
+        st.Page("pages/accueil.py", title="Accueil", icon="⛵", default=True),
+    ],
+    "Entraînement (coachs)": [
+        st.Page("pages/saisie.py", title="Saisie", icon="📝"),
+        st.Page("pages/analyse.py", title="Analyse", icon="📊"),
+    ],
+    "Debrief régate": [
+        st.Page("pages/debrief.py", title="Mon debrief", icon="🌊"),
+        st.Page("pages/debrief_analyse.py", title="Analyse debrief (coachs)", icon="🔎"),
+    ],
+    "Administration": [
+        st.Page("pages/configuration.py", title="Configuration", icon="⚙️"),
+    ],
+}
 
 inject_css()
 sidebar_logo()

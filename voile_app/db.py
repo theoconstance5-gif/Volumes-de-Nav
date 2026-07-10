@@ -197,6 +197,90 @@ class SessionThemeSplit(Base):
 
 
 # ---------------------------------------------------------------------------
+# Debrief post-régate (répond à un questionnaire d'auto-évaluation après
+# chaque journée de compétition) — remplace le Google Form + VBA d'origine.
+# ---------------------------------------------------------------------------
+
+response_athlete = Table(
+    "response_athlete",
+    Base.metadata,
+    Column("response_id", Integer, ForeignKey("debrief_responses.id", ondelete="CASCADE"), primary_key=True),
+    Column("athlete_id", Integer, ForeignKey("athletes.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class DebriefEpreuve(Base):
+    """Épreuve / lieu de compétition (ex : Palamos, Challenge du Centre 3)."""
+    __tablename__ = "debrief_epreuves"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(150), nullable=False, unique=True)
+    active = Column(Boolean, default=True, nullable=False)
+
+    def __str__(self):
+        return self.name
+
+
+class DebriefCriterion(Base):
+    """Critère noté de 1 à 5 dans le questionnaire (ex : « J'ai fait un bon départ »)."""
+    __tablename__ = "debrief_criteria"
+    id = Column(Integer, primary_key=True)
+    label = Column(String(255), nullable=False, unique=True)
+    position = Column(Integer, nullable=False, default=0)
+    active = Column(Boolean, default=True, nullable=False)
+
+    def __str__(self):
+        return self.label
+
+
+class DebriefPoint(Base):
+    """
+    Point technique pouvant être choisi comme « point noir » ou « point
+    positif » de la journée (ex : « Le placement au départ »).
+    """
+    __tablename__ = "debrief_points"
+    id = Column(Integer, primary_key=True)
+    label = Column(String(255), nullable=False, unique=True)
+    active = Column(Boolean, default=True, nullable=False)
+
+    def __str__(self):
+        return self.label
+
+
+class DebriefResponse(Base):
+    """Une réponse au questionnaire = un équipage, un jour, une épreuve."""
+    __tablename__ = "debrief_responses"
+    id = Column(Integer, primary_key=True)
+    submitted_at = Column(DateTime, default=datetime.utcnow)
+    epreuve_id = Column(Integer, ForeignKey("debrief_epreuves.id"), nullable=False)
+    jour = Column(Integer, nullable=False)
+    point_noir_id = Column(Integer, ForeignKey("debrief_points.id"), nullable=True)
+    point_positif_id = Column(Integer, ForeignKey("debrief_points.id"), nullable=True)
+    commentaire = Column(Text, nullable=True)
+
+    epreuve = relationship("DebriefEpreuve")
+    point_noir = relationship("DebriefPoint", foreign_keys=[point_noir_id])
+    point_positif = relationship("DebriefPoint", foreign_keys=[point_positif_id])
+    athletes = relationship("Athlete", secondary=response_athlete)
+    ratings = relationship("DebriefRating", back_populates="response", cascade="all, delete-orphan")
+
+    @property
+    def athletes_label(self):
+        return " / ".join(a.full_name for a in self.athletes) or "—"
+
+
+class DebriefRating(Base):
+    """Note de 1 à 5 donnée à un critère, pour une réponse donnée."""
+    __tablename__ = "debrief_ratings"
+    id = Column(Integer, primary_key=True)
+    response_id = Column(Integer, ForeignKey("debrief_responses.id", ondelete="CASCADE"), nullable=False)
+    criterion_id = Column(Integer, ForeignKey("debrief_criteria.id"), nullable=False)
+    value = Column(Integer, nullable=False)  # 1 à 5
+
+    response = relationship("DebriefResponse", back_populates="ratings")
+    criterion = relationship("DebriefCriterion")
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -247,6 +331,36 @@ def _seed_defaults():
                 Athlete(first_name="Nolan", last_name="Robert", group_id=espoirs.id),
             ]
             db.add_all(demo)
+            db.commit()
+
+        if db.query(DebriefCriterion).count() == 0:
+            criteria = [
+                "J'ai fait un bon départ",
+                "J'avais une bonne vitesse au près",
+                "J'avais une bonne vitesse au largue",
+                "J'ai fait de belles enroulées de marque",
+                "J'ai suivi mon plan stratégique",
+                "Physiquement à la fin de la journée j'étais plutôt",
+                "Mentalement j'ai réussi à rester solide tout au long de la journée",
+                "La communication à bord était",
+                "J'avais une bonne vitesse sous spi",
+            ]
+            db.add_all([DebriefCriterion(label=c, position=i) for i, c in enumerate(criteria)])
+            db.commit()
+
+        if db.query(DebriefPoint).count() == 0:
+            points = [
+                "Le placement au départ", "Le timing de lancement au départ",
+                "La tenue de ma place en post départ", "La conduite du bateau au près",
+                "Les réglages des voiles au près", "La conduite du bateau au largue",
+                "Les réglages des voiles au largue", "La conduite du bateau au vent arrière",
+                "Les réglages des voiles au vent arrière", "Les réglages statiques du bateau",
+                "Les envois de spi", "Les passages de marque sous le vent",
+                "La gestion de la flotte", "Le suivi du vent",
+                "La fatigue mentale", "La fatigue musculaire",
+                "La communication à bord",
+            ]
+            db.add_all([DebriefPoint(label=p) for p in points])
             db.commit()
     finally:
         db.close()

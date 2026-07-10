@@ -1,17 +1,22 @@
 import streamlit as st
 import pandas as pd
 
-from db import init_db, get_db, Group, Athlete, Spot, Theme, WindTranche
-from style import page_header
+from db import (
+    init_db, get_db, Group, Athlete, Spot, Theme, WindTranche,
+    DebriefEpreuve, DebriefCriterion, DebriefPoint
+)
+from style import page_header, require_coach_auth
 
+require_coach_auth()
 init_db()
 
 page_header("⚙️", "Configuration des listes", "Gère les référentiels utilisés dans la saisie et l'analyse")
 
 db = get_db()
 
-tab_groups, tab_athletes, tab_spots, tab_themes, tab_wind = st.tabs(
-    ["👥 Groupes", "🧍 Athlètes", "📍 Lieux", "🎯 Thématiques", "💨 Tranches de vent"]
+tab_groups, tab_athletes, tab_spots, tab_themes, tab_wind, tab_epreuves, tab_criteria, tab_points = st.tabs(
+    ["👥 Groupes", "🧍 Athlètes", "📍 Lieux", "🎯 Thématiques", "💨 Tranches de vent",
+     "🏆 Épreuves", "📋 Critères debrief", "🔍 Points debrief"]
 )
 
 # ---------------------------------------------------------------------------
@@ -204,6 +209,109 @@ with tab_wind:
             st.rerun()
         if c5.button("🗑️", key=f"del_tranche_{t.id}"):
             db.delete(t)
+            db.commit()
+            st.rerun()
+
+# ---------------------------------------------------------------------------
+# Épreuves (debrief)
+# ---------------------------------------------------------------------------
+with tab_epreuves:
+    st.subheader("Épreuves")
+    st.caption("Compétitions / lieux d'épreuve proposés dans le formulaire de debrief.")
+    epreuves = db.query(DebriefEpreuve).order_by(DebriefEpreuve.name).all()
+
+    with st.form("add_epreuve", clear_on_submit=True):
+        c1, c2 = st.columns([3, 1])
+        name = c1.text_input("Nom de l'épreuve", placeholder="ex : Palamos")
+        submitted = c2.form_submit_button("➕ Ajouter", use_container_width=True)
+        if submitted and name.strip():
+            if db.query(DebriefEpreuve).filter_by(name=name.strip()).first():
+                st.error("Cette épreuve existe déjà.")
+            else:
+                db.add(DebriefEpreuve(name=name.strip()))
+                db.commit()
+                st.success(f"Épreuve « {name} » ajoutée.")
+                st.rerun()
+
+    for e in epreuves:
+        c1, c2, c3 = st.columns([3, 1, 1])
+        c1.write(e.name)
+        active = c2.toggle("Active", value=e.active, key=f"epreuve_active_{e.id}")
+        if active != e.active:
+            e.active = active
+            db.commit()
+            st.rerun()
+        if c3.button("🗑️ Supprimer", key=f"del_epreuve_{e.id}"):
+            db.delete(e)
+            db.commit()
+            st.rerun()
+
+# ---------------------------------------------------------------------------
+# Critères de debrief
+# ---------------------------------------------------------------------------
+with tab_criteria:
+    st.subheader("Critères notés dans le debrief")
+    st.caption("Chaque athlète note ces critères de 1 à 5 après chaque journée. L'ordre ci-dessous est celui du formulaire.")
+    criteria = db.query(DebriefCriterion).order_by(DebriefCriterion.position).all()
+
+    with st.form("add_criterion", clear_on_submit=True):
+        c1, c2 = st.columns([4, 1])
+        label = c1.text_input("Libellé du critère", placeholder="ex : J'ai fait un bon départ")
+        submitted = c2.form_submit_button("➕ Ajouter", use_container_width=True)
+        if submitted and label.strip():
+            if db.query(DebriefCriterion).filter_by(label=label.strip()).first():
+                st.error("Ce critère existe déjà.")
+            else:
+                max_pos = db.query(DebriefCriterion).count()
+                db.add(DebriefCriterion(label=label.strip(), position=max_pos))
+                db.commit()
+                st.success(f"Critère « {label} » ajouté.")
+                st.rerun()
+
+    for c in criteria:
+        c1, c2, c3 = st.columns([4, 1, 1])
+        c1.write(c.label)
+        active = c2.toggle("Actif", value=c.active, key=f"criterion_active_{c.id}")
+        if active != c.active:
+            c.active = active
+            db.commit()
+            st.rerun()
+        if c3.button("🗑️", key=f"del_criterion_{c.id}"):
+            db.delete(c)
+            db.commit()
+            st.rerun()
+
+# ---------------------------------------------------------------------------
+# Points de debrief (point noir / point positif)
+# ---------------------------------------------------------------------------
+with tab_points:
+    st.subheader("Points techniques (point noir / point positif)")
+    st.caption("Liste proposée dans le debrief pour désigner LE point noir et LE point positif de la journée.")
+    points = db.query(DebriefPoint).order_by(DebriefPoint.label).all()
+
+    with st.form("add_point", clear_on_submit=True):
+        c1, c2 = st.columns([4, 1])
+        label = c1.text_input("Libellé du point", placeholder="ex : Le placement au départ")
+        submitted = c2.form_submit_button("➕ Ajouter", use_container_width=True)
+        if submitted and label.strip():
+            if db.query(DebriefPoint).filter_by(label=label.strip()).first():
+                st.error("Ce point existe déjà.")
+            else:
+                db.add(DebriefPoint(label=label.strip()))
+                db.commit()
+                st.success(f"Point « {label} » ajouté.")
+                st.rerun()
+
+    for p in points:
+        c1, c2, c3 = st.columns([4, 1, 1])
+        c1.write(p.label)
+        active = c2.toggle("Actif", value=p.active, key=f"point_active_{p.id}")
+        if active != p.active:
+            p.active = active
+            db.commit()
+            st.rerun()
+        if c3.button("🗑️", key=f"del_point_{p.id}"):
+            db.delete(p)
             db.commit()
             st.rerun()
 

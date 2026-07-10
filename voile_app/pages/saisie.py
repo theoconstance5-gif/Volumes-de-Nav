@@ -5,8 +5,9 @@ from db import (
     init_db, get_db, Group, Athlete, Spot, Theme, WindTranche,
     TrainingSession, SessionWindSplit, SessionThemeSplit, compute_duration_hours
 )
-from style import page_header
+from style import page_header, require_coach_auth
 
+require_coach_auth()
 init_db()
 
 page_header("📝", "Saisie d'une séance", "Enregistrer une session d'entraînement sur l'eau")
