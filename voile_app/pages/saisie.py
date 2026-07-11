@@ -39,6 +39,10 @@ def _reset_form():
     st.session_state.pop("_saisie_last_group_id", None)
 
 
+spot_options = {s.id: s.name for s in spots}
+group_options = {g.id: g.name for g in groups}
+theme_options = {t.id: t.name for t in themes}
+
 # ---------------------------------------------------------------------------
 # Informations générales
 # ---------------------------------------------------------------------------
@@ -46,8 +50,16 @@ col1, col2 = st.columns(2)
 
 with col1:
     session_date = st.date_input("Date de la séance", value=date.today(), key="saisie_date")
-    spot = st.selectbox("Lieu de navigation", spots, format_func=str, key="saisie_spot")
-    group = st.selectbox("Groupe concerné", groups, format_func=str, key="saisie_group")
+    spot_id = st.selectbox(
+        "Lieu de navigation", options=list(spot_options.keys()),
+        format_func=lambda i: spot_options[i], key="saisie_spot",
+    )
+    spot = next(s for s in spots if s.id == spot_id)
+    group_id = st.selectbox(
+        "Groupe concerné", options=list(group_options.keys()),
+        format_func=lambda i: group_options[i], key="saisie_group",
+    )
+    group = next(g for g in groups if g.id == group_id)
 
     # Si le groupe change, on réinitialise la sélection des athlètes présents
     # (les athlètes de l'ancien groupe ne sont plus des options valides).
@@ -77,14 +89,15 @@ st.markdown("<hr class='voile-divider'>", unsafe_allow_html=True)
 # Thématique(s) de travail — 1 ou 2, avec curseur de répartition si 2
 # ---------------------------------------------------------------------------
 st.markdown("**Thématique(s) de travail**")
-selected_themes = st.multiselect(
+selected_theme_ids = st.multiselect(
     "Choisis 1 ou 2 thématiques",
-    options=themes,
-    format_func=str,
+    options=list(theme_options.keys()),
+    format_func=lambda i: theme_options[i],
     max_selections=2,
     key="saisie_themes",
     help="Sélectionne jusqu'à 2 thématiques. Avec 2, un curseur permet de répartir le temps entre elles."
 )
+selected_themes = [t for t in themes if t.id in selected_theme_ids]
 
 theme_hours = {}  # theme_id -> heures
 
@@ -141,19 +154,21 @@ st.markdown("<hr class='voile-divider'>", unsafe_allow_html=True)
 # Athlètes présents — limités au groupe sélectionné
 # ---------------------------------------------------------------------------
 group_athletes = db.query(Athlete).filter_by(active=True, group_id=group.id).order_by(Athlete.last_name).all()
+group_athlete_options = {a.id: a.full_name for a in group_athletes}
 
 if not group_athletes:
     st.warning(f"Aucun athlète actif rattaché au groupe « {group.name} ». Ajoute-les dans **Configuration**.")
     present = []
 else:
-    present = st.multiselect(
+    present_ids = st.multiselect(
         "Athlètes présents",
-        options=group_athletes,
-        default=group_athletes,
-        format_func=lambda a: a.full_name,
+        options=list(group_athlete_options.keys()),
+        default=list(group_athlete_options.keys()),
+        format_func=lambda i: group_athlete_options[i],
         key="saisie_present",
         help="Pré-rempli avec tout le groupe — décoche les absents si besoin."
     )
+    present = [a for a in group_athletes if a.id in present_ids]
 
 comments = st.text_area("Commentaires / observations", placeholder="Points travaillés, remarques...", key="saisie_comments")
 

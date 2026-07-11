@@ -23,7 +23,12 @@ if not epreuves:
     st.info("Aucune épreuve configurée pour l'instant. Ajoute-en dans **Configuration**.")
     st.stop()
 
-epreuve = st.selectbox("Épreuve à analyser", epreuves, format_func=str)
+epreuve_options = {e.id: e.name for e in epreuves}
+epreuve_id = st.selectbox(
+    "Épreuve à analyser", options=list(epreuve_options.keys()),
+    format_func=lambda i: epreuve_options[i],
+)
+epreuve = next(e for e in epreuves if e.id == epreuve_id)
 
 responses = (
     db.query(DebriefResponse)

@@ -68,14 +68,15 @@ with tab_athletes:
     if not groups:
         st.warning("Crée d'abord au moins un groupe (onglet Groupes).")
     else:
+        group_options = {g.id: g.name for g in groups}
         with st.form("add_athlete", clear_on_submit=True):
             c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
             first_name = c1.text_input("Prénom")
             last_name = c2.text_input("Nom")
-            group = c3.selectbox("Groupe", groups, format_func=str)
+            group_id = c3.selectbox("Groupe", options=list(group_options.keys()), format_func=lambda i: group_options[i])
             submitted = c4.form_submit_button("➕ Ajouter", use_container_width=True)
             if submitted and first_name.strip() and last_name.strip():
-                db.add(Athlete(first_name=first_name.strip(), last_name=last_name.strip(), group_id=group.id))
+                db.add(Athlete(first_name=first_name.strip(), last_name=last_name.strip(), group_id=group_id))
                 db.commit()
                 st.success(f"Athlète « {first_name} {last_name} » ajouté(e).")
                 st.rerun()
@@ -85,12 +86,14 @@ with tab_athletes:
             for a in athletes:
                 c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
                 c1.write(a.full_name)
-                current_group = c2.selectbox(
-                    "Groupe", groups, index=next((i for i, g in enumerate(groups) if g.id == a.group_id), 0),
-                    key=f"athlete_group_{a.id}", format_func=str, label_visibility="collapsed"
+                group_ids = list(group_options.keys())
+                current_group_id = c2.selectbox(
+                    "Groupe", options=group_ids,
+                    index=group_ids.index(a.group_id) if a.group_id in group_ids else 0,
+                    key=f"athlete_group_{a.id}", format_func=lambda i: group_options[i], label_visibility="collapsed"
                 )
-                if current_group.id != a.group_id:
-                    a.group_id = current_group.id
+                if current_group_id != a.group_id:
+                    a.group_id = current_group_id
                     db.commit()
                     st.rerun()
                 active = c3.toggle("Actif", value=a.active, key=f"athlete_active_{a.id}")

@@ -25,17 +25,24 @@ if not epreuves or not athletes or not criteria:
     db.close()
     st.stop()
 
+epreuve_options = {e.id: e.name for e in epreuves}
+athlete_options = {a.id: a.full_name for a in athletes}
+point_options_map = {p.id: p.label for p in points}
+
 with st.form("debrief_form", clear_on_submit=True):
     col1, col2 = st.columns(2)
     with col1:
-        epreuve = st.selectbox("Épreuve", epreuves, format_func=str)
+        epreuve_id = st.selectbox(
+            "Épreuve", options=list(epreuve_options.keys()),
+            format_func=lambda i: epreuve_options[i],
+        )
     with col2:
         jour = st.number_input("Jour du championnat", min_value=1, max_value=20, value=1, step=1)
 
-    equipage = st.multiselect(
+    equipage_ids = st.multiselect(
         "Ton équipage (toi + éventuel équipier)",
-        options=athletes,
-        format_func=lambda a: a.full_name,
+        options=list(athlete_options.keys()),
+        format_func=lambda i: athlete_options[i],
         help="Sélectionne-toi, et ton équipier si vous naviguez à deux."
     )
 
@@ -48,33 +55,36 @@ with st.form("debrief_form", clear_on_submit=True):
 
     st.markdown("<hr class='voile-divider'>", unsafe_allow_html=True)
 
-    point_options = ["—"] + [str(p) for p in points]
+    point_choices = [(None, "—")] + [(pid, label) for pid, label in point_options_map.items()]
     col3, col4 = st.columns(2)
     with col3:
-        point_noir_label = st.selectbox("LE point noir principal de la journée", point_options)
+        point_noir_id = st.selectbox(
+            "LE point noir principal de la journée", options=[c[0] for c in point_choices],
+            format_func=lambda i: point_options_map.get(i, "—"),
+        )
     with col4:
-        point_positif_label = st.selectbox("LE point positif principal de la journée", point_options)
+        point_positif_id = st.selectbox(
+            "LE point positif principal de la journée", options=[c[0] for c in point_choices],
+            format_func=lambda i: point_options_map.get(i, "—"),
+        )
 
     commentaire = st.text_area("Autre chose à ajouter ? (optionnel)", placeholder="Commentaire libre...")
 
     submitted = st.form_submit_button("Envoyer mon debrief", use_container_width=True, type="primary")
 
     if submitted:
-        if not equipage:
+        if not equipage_ids:
             st.error("Sélectionne au moins un membre d'équipage (toi-même).")
         else:
-            point_noir = next((p for p in points if str(p) == point_noir_label), None)
-            point_positif = next((p for p in points if str(p) == point_positif_label), None)
-
             response = DebriefResponse(
-                epreuve_id=epreuve.id,
+                epreuve_id=epreuve_id,
                 jour=int(jour),
-                point_noir_id=point_noir.id if point_noir else None,
-                point_positif_id=point_positif.id if point_positif else None,
+                point_noir_id=point_noir_id,
+                point_positif_id=point_positif_id,
                 commentaire=commentaire,
             )
             response.athletes = db.query(Athlete).filter(
-                Athlete.id.in_([a.id for a in equipage])
+                Athlete.id.in_(equipage_ids)
             ).all()
             db.add(response)
             db.flush()

@@ -40,7 +40,7 @@ DATABASE_URL = _get_database_url()
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, connect_args=connect_args)
-SessionLocal = scoped_session(sessionmaker(bind=engine, autoflush=False, autocommit=False))
+SessionLocal = scoped_session(sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False))
 
 Base = declarative_base()
 
@@ -324,14 +324,19 @@ def _seed_defaults():
         if db.query(Athlete).count() == 0:
             elite = db.query(Group).filter_by(name="Elite").first()
             espoirs = db.query(Group).filter_by(name="Espoirs").first()
-            demo = [
-                Athlete(first_name="Léa", last_name="Martin", group_id=elite.id),
-                Athlete(first_name="Hugo", last_name="Bernard", group_id=elite.id),
-                Athlete(first_name="Chloé", last_name="Petit", group_id=espoirs.id),
-                Athlete(first_name="Nolan", last_name="Robert", group_id=espoirs.id),
-            ]
-            db.add_all(demo)
-            db.commit()
+            # Ne seed les athlètes de démo que si les groupes de démo existent
+            # encore (premier lancement). Si l'utilisateur a déjà renommé ou
+            # supprimé ces groupes, on ne force rien : il gérera ses propres
+            # athlètes depuis Configuration.
+            if elite and espoirs:
+                demo = [
+                    Athlete(first_name="Léa", last_name="Martin", group_id=elite.id),
+                    Athlete(first_name="Hugo", last_name="Bernard", group_id=elite.id),
+                    Athlete(first_name="Chloé", last_name="Petit", group_id=espoirs.id),
+                    Athlete(first_name="Nolan", last_name="Robert", group_id=espoirs.id),
+                ]
+                db.add_all(demo)
+                db.commit()
 
         if db.query(DebriefCriterion).count() == 0:
             criteria = [
