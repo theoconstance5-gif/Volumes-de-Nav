@@ -46,14 +46,14 @@ with st.form("debrief_form", clear_on_submit=True):
         help="Sélectionne-toi, et ton équipier si vous naviguez à deux."
     )
 
-    st.markdown("<hr class='voile-divider'>", unsafe_allow_html=True)
+    st.html("<hr class='voile-divider'>")
     st.markdown("**Ta journée, de 1 (pas du tout) à 5 (totalement)**")
 
     ratings = {}
     for c in criteria:
         ratings[c.id] = st.slider(c.label, min_value=1, max_value=5, value=3, key=f"debrief_rating_{c.id}")
 
-    st.markdown("<hr class='voile-divider'>", unsafe_allow_html=True)
+    st.html("<hr class='voile-divider'>")
 
     point_choices = [(None, "—")] + [(pid, label) for pid, label in point_options_map.items()]
     col3, col4 = st.columns(2)
