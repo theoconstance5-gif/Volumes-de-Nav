@@ -39,7 +39,17 @@ def _get_database_url() -> str:
 DATABASE_URL = _get_database_url()
 
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+
+# pool_pre_ping : teste chaque connexion avant de l'utiliser et la remplace
+# silencieusement si elle est morte (cas fréquent avec les bases Postgres
+# "serverless" comme Neon, qui peuvent fermer les connexions inactives).
+# pool_recycle : force le renouvellement des connexions au bout de 5 min,
+# avant qu'elles ne soient coupées côté serveur.
+engine_kwargs = {"connect_args": connect_args, "pool_pre_ping": True}
+if not DATABASE_URL.startswith("sqlite"):
+    engine_kwargs["pool_recycle"] = 280
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = scoped_session(sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False))
 
 Base = declarative_base()
