@@ -56,9 +56,9 @@ df_ratings = pd.DataFrame(rating_rows)
 point_rows = []
 for r in responses:
     if r.point_noir:
-        point_rows.append({"type": "Point noir", "point": r.point_noir.label})
+        point_rows.append({"response_id": r.id, "athletes": r.athletes_label, "type": "Point noir", "point": r.point_noir.label})
     if r.point_positif:
-        point_rows.append({"type": "Point positif", "point": r.point_positif.label})
+        point_rows.append({"response_id": r.id, "athletes": r.athletes_label, "type": "Point positif", "point": r.point_positif.label})
 df_points = pd.DataFrame(point_rows)
 
 criterion_labels = [c.label for c in criteria]
@@ -159,5 +159,33 @@ with tab_indiv:
             )
             fig_evo.update_layout(plot_bgcolor="white", paper_bgcolor="white", legend_title_text="")
             st.plotly_chart(fig_evo, use_container_width=True)
+
+        st.subheader(f"Points noirs / positifs — {selected_name}")
+        indiv_points = df_points[df_points["athletes"] == selected_name]
+        ci1, ci2 = st.columns(2)
+        with ci1:
+            st.markdown("**Points d'attention**")
+            indiv_noirs = indiv_points[indiv_points["type"] == "Point noir"]["point"].value_counts()
+            if indiv_noirs.empty:
+                st.caption("Aucun point noir renseigné pour cet athlète.")
+            else:
+                fig_indiv_noir = px.pie(
+                    names=indiv_noirs.index, values=indiv_noirs.values, hole=0.4,
+                    color_discrete_sequence=CHART_COLORS,
+                )
+                fig_indiv_noir.update_traces(textinfo="percent+label")
+                st.plotly_chart(fig_indiv_noir, use_container_width=True)
+        with ci2:
+            st.markdown("**Points positifs**")
+            indiv_positifs = indiv_points[indiv_points["type"] == "Point positif"]["point"].value_counts()
+            if indiv_positifs.empty:
+                st.caption("Aucun point positif renseigné pour cet athlète.")
+            else:
+                fig_indiv_pos = px.pie(
+                    names=indiv_positifs.index, values=indiv_positifs.values, hole=0.4,
+                    color_discrete_sequence=CHART_COLORS,
+                )
+                fig_indiv_pos.update_traces(textinfo="percent+label")
+                st.plotly_chart(fig_indiv_pos, use_container_width=True)
 
 db.close()
