@@ -149,13 +149,17 @@ if fdf_base.empty:
 # KPIs
 # ---------------------------------------------------------------------------
 k1, k2, k3, k4 = st.columns(4)
-k1.metric("Volume total", f"{fdf_base['duree_h'].sum():.1f} h")
+k1.metric(
+    "Volume max. par athlète", f"{fdf_base.drop_duplicates('session_id')['duree_h'].sum():.1f} h",
+    help="Volume qu'un athlète aurait atteint s'il avait été présent à toutes les séances filtrées "
+         "(chaque séance comptée une seule fois, contrairement au cumul de tous les athlètes)."
+)
 k2.metric("Séances (uniques)", f"{fdf_base['session_id'].nunique()}")
 k3.metric("Athlètes actifs", f"{fdf_base['athlete_id'].nunique()}")
 dominant_tranche = fdf_wind.groupby("tranche_vent")["duree_h"].sum().idxmax() if not fdf_wind.empty else "—"
 k4.metric("Tranche de vent dominante", dominant_tranche)
 
-st.markdown("<hr class='voile-divider'>", unsafe_allow_html=True)
+st.html("<hr class='voile-divider'>")
 
 # ---------------------------------------------------------------------------
 # Comparaison volume par entité
@@ -192,7 +196,7 @@ fig_line = px.line(
 fig_line.update_layout(plot_bgcolor="white", paper_bgcolor="white", legend_title_text="")
 st.plotly_chart(fig_line, use_container_width=True)
 
-st.markdown("<hr class='voile-divider'>", unsafe_allow_html=True)
+st.html("<hr class='voile-divider'>")
 
 # ---------------------------------------------------------------------------
 # Analyse par tranche de vent / thématique
@@ -244,7 +248,7 @@ else:
     fig_heat.update_layout(height=max(300, 40 * len(cross)), paper_bgcolor="white")
     st.plotly_chart(fig_heat, use_container_width=True)
 
-st.markdown("<hr class='voile-divider'>", unsafe_allow_html=True)
+st.html("<hr class='voile-divider'>")
 
 # ---------------------------------------------------------------------------
 # Thématiques travaillées en fonction de la force du vent
@@ -279,7 +283,7 @@ else:
     fig_cross_bar.update_layout(plot_bgcolor="white", paper_bgcolor="white", legend_title_text="")
     st.plotly_chart(fig_cross_bar, use_container_width=True)
 
-st.markdown("<hr class='voile-divider'>", unsafe_allow_html=True)
+st.html("<hr class='voile-divider'>")
 
 # ---------------------------------------------------------------------------
 # Détail / export — une ligne par séance x athlète, thématiques et tranches
@@ -313,7 +317,7 @@ with st.expander("📋 Voir le détail des séances filtrées"):
         mime="text/csv",
     )
 
-st.markdown("<hr class='voile-divider'>", unsafe_allow_html=True)
+st.html("<hr class='voile-divider'>")
 
 # ---------------------------------------------------------------------------
 # Comparaison tête-à-tête entre deux athlètes
