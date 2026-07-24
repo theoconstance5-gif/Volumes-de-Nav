@@ -223,7 +223,7 @@ fig_bar = px.bar(
 )
 fig_bar.update_traces(texttemplate="%{text:.1f} h", textposition="outside")
 fig_bar.update_layout(plot_bgcolor="white", paper_bgcolor="white", showlegend=False, height=max(300, 40 * len(agg)))
-st.plotly_chart(fig_bar, use_container_width=True)
+st.plotly_chart(fig_bar, use_container_width=True, key="chart_bar_entite")
 
 # ---------------------------------------------------------------------------
 # Évolution temporelle
@@ -252,7 +252,7 @@ fig_line = px.line(
     labels={"duree_h": "Volume (heures)", "date": "", entity_col: ""},
 )
 fig_line.update_layout(plot_bgcolor="white", paper_bgcolor="white", legend_title_text="")
-st.plotly_chart(fig_line, use_container_width=True)
+st.plotly_chart(fig_line, use_container_width=True, key="chart_line_temps")
 
 st.html("<hr class='voile-divider'>")
 
@@ -273,7 +273,7 @@ with c1:
         )
         fig_wind.update_traces(textinfo="percent+label")
         fig_wind.update_layout(showlegend=False)
-        st.plotly_chart(fig_wind, use_container_width=True)
+        st.plotly_chart(fig_wind, use_container_width=True, key="chart_wind_pie")
 
 with c2:
     st.subheader("Volume par thématique")
@@ -287,7 +287,7 @@ with c2:
             labels={"duree_h": "Volume (heures)", "thematique": ""},
         )
         fig_theme.update_layout(plot_bgcolor="white", paper_bgcolor="white", height=max(300, 35 * len(theme_agg)))
-        st.plotly_chart(fig_theme, use_container_width=True)
+        st.plotly_chart(fig_theme, use_container_width=True, key="chart_theme_bar")
 
 # ---------------------------------------------------------------------------
 # Croisement entité x tranche de vent (heatmap) — utile pour comparer profils
@@ -312,7 +312,7 @@ else:
         colorbar=dict(title="heures"),
     ))
     fig_heat.update_layout(height=max(300, 40 * len(cross)), paper_bgcolor="white")
-    st.plotly_chart(fig_heat, use_container_width=True)
+    st.plotly_chart(fig_heat, use_container_width=True, key="chart_heat_entite_vent")
 
 st.html("<hr class='voile-divider'>")
 
@@ -338,7 +338,7 @@ else:
         colorbar=dict(title="heures (est.)"),
     ))
     fig_cross.update_layout(height=max(300, 40 * len(cross_theme_wind)), paper_bgcolor="white")
-    st.plotly_chart(fig_cross, use_container_width=True)
+    st.plotly_chart(fig_cross, use_container_width=True, key="chart_cross_heat")
 
     fig_cross_bar = px.bar(
         fdf_sess_cross.groupby(["thematique", "tranche_vent"])["duree_h"].sum().reset_index(),
@@ -347,7 +347,7 @@ else:
         labels={"duree_h": "Volume estimé (heures)", "thematique": "", "tranche_vent": "Tranche de vent"},
     )
     fig_cross_bar.update_layout(plot_bgcolor="white", paper_bgcolor="white", legend_title_text="")
-    st.plotly_chart(fig_cross_bar, use_container_width=True)
+    st.plotly_chart(fig_cross_bar, use_container_width=True, key="chart_cross_bar")
 
 st.html("<hr class='voile-divider'>")
 
@@ -430,7 +430,7 @@ else:
                     labels={"duree_h": "Volume (heures)", "thematique": "", "athlete": ""},
                 )
                 fig_duo_theme.update_layout(plot_bgcolor="white", paper_bgcolor="white", legend_title_text="")
-                st.plotly_chart(fig_duo_theme, use_container_width=True)
+                st.plotly_chart(fig_duo_theme, use_container_width=True, key="chart_duo_theme")
 
         with cc2:
             st.markdown("**Volume par tranche de vent**")
@@ -444,7 +444,7 @@ else:
                     labels={"duree_h": "Volume (heures)", "tranche_vent": "", "athlete": ""},
                 )
                 fig_duo_wind.update_layout(plot_bgcolor="white", paper_bgcolor="white", legend_title_text="")
-                st.plotly_chart(fig_duo_wind, use_container_width=True)
+                st.plotly_chart(fig_duo_wind, use_container_width=True, key="chart_duo_wind")
 
         st.markdown("**Évolution du volume dans le temps**")
         duo_time = (
@@ -458,6 +458,6 @@ else:
             labels={"duree_h": "Volume (heures)", "date": "", "athlete": ""},
         )
         fig_duo_line.update_layout(plot_bgcolor="white", paper_bgcolor="white", legend_title_text="")
-        st.plotly_chart(fig_duo_line, use_container_width=True)
+        st.plotly_chart(fig_duo_line, use_container_width=True, key="chart_duo_line")
 
 db.close()
