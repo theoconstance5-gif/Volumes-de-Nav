@@ -223,6 +223,7 @@ with tab_gestion:
 
     all_points = db.query(DebriefPoint).order_by(DebriefPoint.label).all()
     all_athletes = db.query(Athlete).order_by(Athlete.last_name).all()
+    all_epreuves = db.query(DebriefEpreuve).order_by(DebriefEpreuve.name).all()
     point_options = {None: "—"} | {p.id: p.label for p in all_points}
 
     responses_sorted = sorted(responses, key=lambda r: (r.jour, r.athletes_label))
@@ -242,6 +243,12 @@ with tab_gestion:
     ratings_by_crit = {rt.criterion_id: rt.value for rt in resp.ratings}
 
     with st.form(f"edit_resp_{resp.id}"):
+        epreuve_edit = st.selectbox(
+            "Épreuve", options=[e.id for e in all_epreuves],
+            index=[e.id for e in all_epreuves].index(resp.epreuve_id) if resp.epreuve_id in [e.id for e in all_epreuves] else 0,
+            format_func=lambda i: next(e.name for e in all_epreuves if e.id == i),
+            help="À corriger si l'athlète s'est trompé d'épreuve en remplissant son debrief.",
+        )
         c1, c2 = st.columns(2)
         with c1:
             jour_edit = st.number_input("Jour du championnat", min_value=1, max_value=20, value=resp.jour, step=1)
@@ -276,6 +283,8 @@ with tab_gestion:
             if not athletes_edit:
                 st.error("Sélectionne au moins un membre d'équipage.")
             else:
+                epreuve_changed = epreuve_edit != resp.epreuve_id
+                resp.epreuve_id = epreuve_edit
                 resp.jour = int(jour_edit)
                 resp.point_noir_id = noir_edit
                 resp.point_positif_id = positif_edit
@@ -285,7 +294,11 @@ with tab_gestion:
                     if rt.criterion_id in new_ratings:
                         rt.value = new_ratings[rt.criterion_id]
                 db.commit()
-                st.success("Debrief mis à jour.")
+                if epreuve_changed:
+                    new_epreuve_name = next(e.name for e in all_epreuves if e.id == epreuve_edit)
+                    st.success(f"Debrief mis à jour et déplacé vers l'épreuve « {new_epreuve_name} ».")
+                else:
+                    st.success("Debrief mis à jour.")
                 st.rerun()
 
     st.html("<hr>")
