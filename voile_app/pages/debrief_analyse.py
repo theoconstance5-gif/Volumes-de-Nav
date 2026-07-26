@@ -41,25 +41,44 @@ if not responses:
     db.close()
     st.stop()
 
+jours_disponibles = sorted({r.jour for r in responses})
+jour_choice = st.selectbox(
+    "Jour à analyser", ["Tous les jours"] + [f"Jour {j}" for j in jours_disponibles],
+    help="Filtre le profil radar et les points noirs/positifs sur un jour précis. "
+         "L'évolution jour par jour reste toujours affichée sur l'ensemble de l'épreuve.",
+)
+selected_jour = int(jour_choice.replace("Jour ", "")) if jour_choice != "Tous les jours" else None
+responses_filtered = [r for r in responses if r.jour == selected_jour] if selected_jour else responses
+
 # ---------------------------------------------------------------------------
 # Construction des dataframes
+#  - df_ratings / df_points : respectent le filtre "jour" (radars, camemberts)
+#  - df_ratings_all : toujours sur l'ensemble de l'épreuve (évolution jour par jour)
 # ---------------------------------------------------------------------------
-rating_rows = []
-for r in responses:
-    for rt in r.ratings:
-        rating_rows.append({
-            "response_id": r.id, "jour": r.jour, "athletes": r.athletes_label,
-            "critere": rt.criterion.label, "valeur": rt.value,
-        })
-df_ratings = pd.DataFrame(rating_rows)
+def _ratings_df(resp_list):
+    rows = []
+    for r in resp_list:
+        for rt in r.ratings:
+            rows.append({
+                "response_id": r.id, "jour": r.jour, "athletes": r.athletes_label,
+                "critere": rt.criterion.label, "valeur": rt.value,
+            })
+    return pd.DataFrame(rows)
 
-point_rows = []
-for r in responses:
-    if r.point_noir:
-        point_rows.append({"response_id": r.id, "athletes": r.athletes_label, "type": "Point noir", "point": r.point_noir.label})
-    if r.point_positif:
-        point_rows.append({"response_id": r.id, "athletes": r.athletes_label, "type": "Point positif", "point": r.point_positif.label})
-df_points = pd.DataFrame(point_rows)
+
+def _points_df(resp_list):
+    rows = []
+    for r in resp_list:
+        if r.point_noir:
+            rows.append({"response_id": r.id, "athletes": r.athletes_label, "type": "Point noir", "point": r.point_noir.label})
+        if r.point_positif:
+            rows.append({"response_id": r.id, "athletes": r.athletes_label, "type": "Point positif", "point": r.point_positif.label})
+    return pd.DataFrame(rows)
+
+
+df_ratings = _ratings_df(responses_filtered)
+df_points = _points_df(responses_filtered)
+df_ratings_all = _ratings_df(responses)
 
 criterion_labels = [c.label for c in criteria]
 
@@ -71,65 +90,69 @@ tab_groupe, tab_indiv, tab_gestion = st.tabs(
 # ANALYSE DU GROUPE
 # ===========================================================================
 with tab_groupe:
-    st.metric("Nombre de réponses", len(responses))
+    st.metric("Nombre de réponses", len(responses_filtered))
 
-    group_avg = df_ratings.groupby("critere")["valeur"].mean().reindex(criterion_labels).round(2)
+    if df_ratings.empty:
+        st.warning("Aucune réponse pour ce jour.")
+        group_avg = pd.Series([0] * len(criterion_labels), index=criterion_labels)
+    else:
+        group_avg = df_ratings.groupby("critere")["valeur"].mean().reindex(criterion_labels).round(2)
 
-    st.subheader("Profil moyen du groupe")
-    fig_radar = go.Figure()
-    fig_radar.add_trace(go.Scatterpolar(
-        r=list(group_avg.values) + [group_avg.values[0]],
-        theta=criterion_labels + [criterion_labels[0]],
-        fill="toself", name="Groupe",
-        line_color=PALETTE["coral"],
-    ))
-    fig_radar.update_layout(
-        polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
-        showlegend=False, height=500,
-    )
-    st.plotly_chart(fig_radar, use_container_width=True, key="chart_radar_groupe")
+        st.subheader(f"Profil moyen du groupe — {jour_choice}")
+        fig_radar = go.Figure()
+        fig_radar.add_trace(go.Scatterpolar(
+            r=list(group_avg.values) + [group_avg.values[0]],
+            theta=criterion_labels + [criterion_labels[0]],
+            fill="toself", name="Groupe",
+            line_color=PALETTE["coral"],
+        ))
+        fig_radar.update_layout(
+            polar=dict(radialaxis=dict(visible=True, range=[0, 5])),
+            showlegend=False, height=500,
+        )
+        st.plotly_chart(fig_radar, use_container_width=True, key="chart_radar_groupe")
 
-    c1, c2 = st.columns(2)
-    with c1:
-        st.subheader("Points d'attention")
-        noirs = df_points[df_points["type"] == "Point noir"]["point"].value_counts()
-        if noirs.empty:
-            st.caption("Aucun point noir renseigné.")
-        else:
-            fig_noir = px.pie(
-                names=noirs.index, values=noirs.values, hole=0.4,
-                color_discrete_sequence=CHART_COLORS,
-            )
-            fig_noir.update_traces(textinfo="percent+label")
-            st.plotly_chart(fig_noir, use_container_width=True, key="chart_noir_groupe")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.subheader("Points d'attention")
+            noirs = df_points[df_points["type"] == "Point noir"]["point"].value_counts()
+            if noirs.empty:
+                st.caption("Aucun point noir renseigné.")
+            else:
+                fig_noir = px.pie(
+                    names=noirs.index, values=noirs.values, hole=0.4,
+                    color_discrete_sequence=CHART_COLORS,
+                )
+                fig_noir.update_traces(textinfo="percent+label")
+                st.plotly_chart(fig_noir, use_container_width=True, key="chart_noir_groupe")
 
-    with c2:
-        st.subheader("Points positifs")
-        positifs = df_points[df_points["type"] == "Point positif"]["point"].value_counts()
-        if positifs.empty:
-            st.caption("Aucun point positif renseigné.")
-        else:
-            fig_pos = px.pie(
-                names=positifs.index, values=positifs.values, hole=0.4,
-                color_discrete_sequence=CHART_COLORS,
-            )
-            fig_pos.update_traces(textinfo="percent+label")
-            st.plotly_chart(fig_pos, use_container_width=True, key="chart_pos_groupe")
+        with c2:
+            st.subheader("Points positifs")
+            positifs = df_points[df_points["type"] == "Point positif"]["point"].value_counts()
+            if positifs.empty:
+                st.caption("Aucun point positif renseigné.")
+            else:
+                fig_pos = px.pie(
+                    names=positifs.index, values=positifs.values, hole=0.4,
+                    color_discrete_sequence=CHART_COLORS,
+                )
+                fig_pos.update_traces(textinfo="percent+label")
+                st.plotly_chart(fig_pos, use_container_width=True, key="chart_pos_groupe")
 
 # ===========================================================================
 # ANALYSE INDIVIDUELLE
 # ===========================================================================
 with tab_indiv:
-    athlete_names = sorted(df_ratings["athletes"].unique())
+    athlete_names = sorted(df_ratings["athletes"].unique()) if not df_ratings.empty else []
     if not athlete_names:
-        st.caption("Pas de données individuelles pour cette épreuve.")
+        st.caption("Pas de données individuelles pour ce jour.")
     else:
         selected_name = st.selectbox("Équipage / athlète", athlete_names)
 
         indiv_ratings = df_ratings[df_ratings["athletes"] == selected_name]
         indiv_avg = indiv_ratings.groupby("critere")["valeur"].mean().reindex(criterion_labels).round(2)
 
-        st.subheader(f"Profil : {selected_name} vs Groupe")
+        st.subheader(f"Profil : {selected_name} vs Groupe — {jour_choice}")
         fig_radar2 = go.Figure()
         fig_radar2.add_trace(go.Scatterpolar(
             r=list(group_avg.values) + [group_avg.values[0]],
@@ -148,8 +171,10 @@ with tab_indiv:
         st.plotly_chart(fig_radar2, use_container_width=True, key="chart_radar_indiv")
 
         st.subheader("Évolution jour par jour")
+        st.caption("Toujours affichée sur l'ensemble de l'épreuve, indépendamment du filtre jour ci-dessus.")
+        indiv_ratings_all = df_ratings_all[df_ratings_all["athletes"] == selected_name]
         evo = (
-            indiv_ratings.groupby(["jour", "critere"])["valeur"].mean().reset_index()
+            indiv_ratings_all.groupby(["jour", "critere"])["valeur"].mean().reset_index()
         )
         if evo["jour"].nunique() < 2:
             st.caption("Il faut au moins 2 jours de données pour tracer une évolution.")
